@@ -1,0 +1,147 @@
+\documentclass[3p,times]{elsarticle}
+\usepackage{setspace}
+\usepackage{algcompatible}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{amsthm,amsmath}
+\newtheorem{definition}{Definition}
+\usepackage{graphicx}% Include figure files
+\usepackage{dcolumn}% Align table columns on decimal point
+\usepackage{bm}% bold math
+\usepackage{hyperref}% add hypertext capabilities
+\usepackage[mathlines]{lineno}
+\usepackage{amssymb}
+\usepackage[figuresright]{rotating}
+
+
+\usepackage{Sweave}
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+\input{test-concordance}
+\input{title}
+\input{abstract}
+
+\section{Introduction}
+For the time being, I am studying the statistical properties of the Latent Dirichlet Allocation topic model.
+
+\section{Background on LDA}
+With an increase in the amount of digitized text, topic modeling has become an important area of research. One of the most popular methods for topic modeling is Latent Dirichlet Allocation (LDA) first described in \cite{lda}. LDA is a probabilistic hierarchical generative model, which uses the Bayesian framework to discover hidden structure, or \textit{topics},  within a text Corpus. For a more thorough background in topic modeling, refer to \cite{news}.
+
+\subsection{Generative Process}
+Given a set of $K$ topics $k=1,...K$ and a set of $D$ documents $d=1,...,D$, also referred to as a corpus, the vocabulary is the set of unique words contained in the corpus such that $V=w_{1,1},...,w_{d,n_{d}},...,w_{D,N_{D}}$, where $N_{d}$ is number of unique words in document $d$. Then the number of words in $V$ is $N=\sum_{d=1}^{D}{N_{d}}$. Let $c_{d,k}$ be vector of length $K$ containing the count of times each topic was assigned to any word in document $d$, and let $C_{k,n}$ be the vector of length $N$ containing the count of times each word in $V$ is assigned to topic $k$. The goal of this algorithm as stated by Blei, ``to find a probabilistic model of a corpus that not only assigns high probability to members of the corpus, but also assigns high probability to other `similar' documents" (\cite{lda}, pp.996). The generative process for a corpus is as follows:
+\begin{itemize}
+\item For each topic, \\
+	1. Draw $\beta_{k} \sim Dir(\eta)$, a distribution over the vocabulary. Each parameter is of dimension $N$.
+
+\item For each document, \\
+	2. Draw $\theta_{d} \sim Dir(\alpha)$, a distribution over the topics. Each parameter is of dimension $K$.
+		\begin{itemize}
+		\item For each word in document $d$, \\
+			3. Draw $z_{d,n} \sim Mult(\theta_{d})$, a topic assignment (i.e. $z_{d,n} \in \mathbb{Z} \in \{1,...,K\}$ ). \\
+			4. Draw $w_{d,n} \sim Mult(\beta_{z_{d,n_{d}}})$, the $n$th word in document $d$.
+	\end{itemize}
+\end{itemize}
+
+This process requires that we know the number of topics $K$ a priori. Blei also assumed that the hyperparameters $\eta \in  (0,1)$ and $\alpha \in (0,1)$ are fixed and estimated through the given data. Note that $\sum_{n=1}^{N}{\eta_{n}}=\sum_{k=1}^{K}{\alpha_{k}}=1$. Assuming this model, we can define the joint probability distribution of a corpus as:
+\begin{equation} \label{eq1}
+p(\beta,\theta,z_{d,n},w_{d,n} | \alpha,\eta) = \prod_{k=1}^{K}{p(\beta_{k} | \eta)}  \prod_{d=1}^{D}\left( p(\theta_{d} | \alpha) \prod_{n=1}^{N_{d}}{p(z_{d,n} | \theta_{d})}p(w_{d,n} | \beta_{1},...,\beta_{K},z_{d,n}) \right)  ,
+\end{equation}
+Let $B(\cdot)$ be the Beta function, then
+
+\begin{equation}
+\begin{split}
+p(\beta | \eta) &=\prod_{k=1}^{K}{\frac{1}{B(\eta)}\prod_{n=1}^{N}{\beta_{k,n}^{\eta_{n}-1}}} \\
+p(\theta | \alpha) &=\prod_{d=1}^{D}{\frac{1}{B(\alpha)}\prod_{k=1}^{K}{\theta_{d,k}^{\alpha_{k}-1}}} \\
+p(z | \theta) &=\prod_{d=1}^{D}{\prod_{k=1}^{K}{\theta_{d,k}^{c_{d,k}}}} \\
+p(w | \beta,z) &=\prod_{d=1}^{D}{\prod_{n=1}^{N}{\beta_{k,n}^{C_{k,n}}}}
+\end{split}
+\end{equation}
+
+Rewriting \ref{eq1}, we obtain the following joint pdf, which also happens to be our posterior distribution for a corpus.
+
+\begin{equation} \label{eq2}
+p(\beta,\theta,z_{d,n},w_{d,n} | \alpha,\eta)=\left( \prod_{k=1}^{K}{\frac{1}{B(\eta)}\prod_{n=1}^{N}{\beta_{k,n}^{\eta_{k,n}-1+C_{k,n}} } }    \right) * \left( \prod_{d=1}^{D}{\frac{1}{B(\alpha)}\prod_{k=1}^{K}{\theta_{d,k}^{\alpha_{d,k}-1+c_{d,k}} } }    \right)
+\end{equation}
+
+When applying this model to real text data, we do not know either $\beta$ or $\theta$. They are latent or hidden, and what we are most interested in finding the posterior distribution of the latent variables given the corpus and hyperparameters. Given $K,z,\alpha,\eta$ to find $\theta, \beta$ we marginalize \ref{eq2} with respect to the latent variables to obtain the following likelihood equation:
+
+\begin{equation} \label{eq3}
+p(w | \alpha,\eta)=\int_{\theta} \int_{\beta} \sum_{z} \left( \prod_{k=1}^{K}{\frac{1}{B(\eta)}\prod_{n=1}^{N}{\beta_{k,n}^{\eta_{k,n}-1+C_{k,n}} } }    \right) * \left( \prod_{d=1}^{D}{\frac{1}{B(\alpha)}\prod_{k=1}^{K}{\theta_{d,k}^{\alpha_{d,k}-1+c_{d,k}} } }    \right) d\beta d\theta
+\end{equation}
+
+This distribution has been shown to be intractable for exact calculation \cite{lda}. However several options are available to approximate this posterior.
+
+
+\subsection{Posterior Inferance}
+Given a document the distribution of latent topics is found through estimation of the posterior distribution. However, this is very challenging and (computationally demanding) since the posterior distribution of the latent variables given a document is intractable. The development of several fast and accurate approximation methods applied to LDA has provided a user with several options including collapsed Gibbs sampling \cite{CGS}, collapsed variational Bayesian inference \cite{CVB}, maximum likelihood estimation \cite{ML}, and maximum a posteriori estimation \cite{MAP}.
+
+
+      \subsubsection{Gibbs}
+
+      \subsubsection{Variational Methods}
+
+      \subsubsection{Other Methods Here}
+
+\section{Implementation/Data Example}
+In \cite{lda}, variational methods are applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}. Refer to my 540 project and what I find there...
+
+	\subsection{Data}
+	What and how I got it...
+	\subsection{lda results}
+
+\section{Conclusions}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{library}
+
+	\begin{thebibliography}{4}
+	\bibitem{STACK}
+	Anonymous. (2012),
+	``Two R Packages for Topic Modeling, lda and topicmodels?" \textit{Cross Validated}: http://stats.stackexchange.com/questions/24441/two-r-packages-for-topic-modeling-lda-and-topicmodels.
+
+	\bibitem{lda}
+	Blei, D., Ng, A., and Jordan, M.  (2003),
+	``Latent Dirichlet Allocation."
+	\textit{Journal of Machine Learning Research}: 3 993-1022.
+
+	\bibitem{Ccode}
+	Blei, D. (2004),``LDA-C."
+
+	\bibitem{news}
+	Blei, D.  (2012),
+	``Survaying a Suit of Algorithms that offer a solution to managing large document archives:          Probalistic Topic Models." \textit{Communications fo the ACM}: vol.55, no.4, 77-84.
+
+	\bibitem{ldaR}
+	Chang, J.  (2015),
+	``Package `lda'."
+	\textit{CRAN}.
+
+	\bibitem{MAP}
+	Chien, J., and Wu, M.  (2008),
+	``Adaptive Bayesian Semantic Analysis."
+	\textit{Audio, Speech, and Language Processing}, IEEE Transactions on: 16(1), 198-207.
+
+	\bibitem{CGS}
+	Griffiths, L. and Steyvers, M.  (2004),
+	``Finding Scientific Topics."
+	\textit{PNAS}: 1(Suppl 1), 5228-5235.
+
+	\bibitem{topicsR}
+	Grun, B. and Hornik, K.  (2015),
+	``Package `topicmodels'."
+	\textit{CRAN}.
+
+	\bibitem{ML}
+	Hofmann, T.  (2001),
+	``Unsupervised Learning by probabilistic Latent Semantic Analysis."
+	\textit{Machine Learning}: 42(1), 177-196.
+
+	\bibitem{CVB}
+	Teh, Y. W., Newman, D., and Welling, M.  (2007),
+	``A Collapsed Variational Bayesian Inference Algorithm for Latent Dirichlet Allocation."
+	\textit{NIPS}: 3, 1353-1360.
+
+
+	\end{thebibliography}
+
+\end{document}
+
