@@ -1,0 +1,18 @@
+{
+    "contents" : "setwd(\"C:\\\\Users\\\\admin-ccook\\\\Desktop\\\\3\\\\Consulting\\\\Final\")\ndata=read.csv(\"data.csv\",header=T)\nhead(data)\n\n#Look at differences of pre-post\nDiff=data$Pre-data$Post\n#Plot data\n\n#Non-normal!!!\nhist(Diff)\nhist(data$Pre)\nhist(data$Post)\n\n#Check equal varainces\nvar(Diff[which(data$Group==\"C\")])\nvar(Diff[which(data$Group==\"E\")])\n\n#Check differences in Diff by Order \nt.test(Diff,alternative=\"two.sided\",mu=0,var.equal=F)\n#Check differences in Pre by Group \n\n#Check differences in Diff by Group\n\n#ANOVA with addtitional factors...",
+    "created" : 1447282848855.000,
+    "dirty" : true,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "1725591897",
+    "id" : "7E9D4BE4",
+    "lastKnownWriteTime" : 7011605692497750387,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "r_source"
+}
