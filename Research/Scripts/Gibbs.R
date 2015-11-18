@@ -13,6 +13,7 @@ my_table<-function(x,K){
   hold=factor(x,levels=c("NA",1:K))
   return(table(hold));
 }
+
 my_Gibbs<-function(docTerm, #docTerm matrix from the Corpus
                    K, # of topics
                    alpha, #
@@ -98,8 +99,17 @@ my_Gibbs<-function(docTerm, #docTerm matrix from the Corpus
 }
 
 #####check....
-test=my_Gibbs(TERMS, K=2, alpha=0.2, eta=0.2, iters=5000) 
+test=my_Gibbs(TERMS, K=2, alpha=0.4, eta=0.4, iters=7000) 
 test$docDist
 test$topics
 test$theta
 test$beta
+
+test=my_Gibbs(Corpus$tdm, K=5, alpha=0.001, eta=0.001, iters=2000) 
+test$docDist 
+test$topics 
+test$theta 
+test$beta
+
+
+

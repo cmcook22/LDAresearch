@@ -5,14 +5,12 @@ simulateCorpus <- function(K, # Number of Topics
                            DocLen=1, #Vector of document lengths
                            eta, #prior for topics over vocabulary
                            alpha, #prior for documents over topics
-                           lambda) 
+                           lambda) #Mean for Pois dist of words per doc
   {
     ####Check inputs to model
     if(length(eta)!=N){stop("Error: Hyperparameter for Vocab is not correct Dimension"); return;}
-    #if(sum(eta)!=1){stop("Error: Hyperparameter for Vocab does not sum to 1"); return;}
     if(length(alpha)!=K){print("Error: Hyperparameter for Topics is not correct Dimension");return;}
-    #if(sum(alpha)!=1){stop("Error: Hyperparameter for Topics does not sum to 1");return;}
-    if(length(DocLen)!=D){print("Warning: Leanth of Documents will be randomly generated from Poisson Distribution")
+    if(length(DocLen)==1){print("Warning: Leanth of Documents will be randomly generated from Poisson Distribution")
                           DocLen=rpois(D,lambda=lambda)
     }  
   
@@ -25,17 +23,18 @@ simulateCorpus <- function(K, # Number of Topics
     documents=list()
     tdm=matrix(0,nrow=N,ncol=D)
     Word_Topic_Count=matrix(0,nrow=N,ncol=K)
+    Theta=matrix(nrow=D,ncol=K)
     #####Create each document in the Corpus
     for(i in 1:D){
       #Draw prior for document distribution over topics
-      Theta=rdirichlet(1,alpha) # 1 row, 3 columns
+      Theta[i,]=rdirichlet(1,alpha) # 1 row, 3 columns
       
       #Get the jth word for document i
       hold=matrix(nrow=DocLen[i],ncol=2)
       colnames(hold)=c("topics","words")
       for (j in 1:DocLen[i]){
         #Draw the topic for the word
-        hold[j,1]=which(rmultinom(1,1,Theta)==1)
+        hold[j,1]=which(rmultinom(1,1,Theta[i,])==1)
         #Draw the actual word
         hold[j,2]=which(rmultinom(1,1,Beta[hold[j,1],])==1)
       }
@@ -46,7 +45,8 @@ simulateCorpus <- function(K, # Number of Topics
                             hold[v,1]]+1
       }
     }
-    results=list(documents=documents,tdm=tdm,word_counts=Word_Topic_Count)
+    results=list(documents=documents,tdm=tdm,word_counts=Word_Topic_Count,Theta=Theta,
+                 Beta=Beta)
     return(results);
 }
 
@@ -62,24 +62,14 @@ Doc_Topic_Count<-function(results,K){
   return(hold);
 }
 
-Word_Topic_Count<-function(results,K){
-  #Check results are from simulateCorpus
-  if(is.list(results)==FALSE){stop("Error: Results must be the results from simulateCorpus"); return;}
-  D=length(results)
-  hold=matrix(nrow=D,ncol=K)
-  #Get topic dist for each doc
-  for (i in 1:D){
-    hold[i,]=table(factor(results[[i]][,1],levels=seq(1,K)))
-  }
-  return(hold);
-}
 
 ####Testing...
-Corpus=simulateCorpus(K=3, # Topics
+Corpus=simulateCorpus(K=5, # Topics
               D=10, # documents
               N=100, # Vocab
-              eta=rep(0.01,100), 
-              alpha=c(0.3,0.3,0.4),lambda=10) 
+              DocLen=rep(10,10),
+              eta=rep(0.001,100), 
+              alpha=rep(0.001,5)) 
 
 Doc_Topic_Count(Corpus$documents,K=3)
 

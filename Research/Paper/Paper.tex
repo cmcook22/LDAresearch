@@ -16,7 +16,6 @@
 \usepackage{Sweave}
 \begin{document}
 \input{Paper-concordance}
-\input{test-concordance}
 \input{title}
 \input{abstract}
 
@@ -24,28 +23,29 @@
 For the time being, I am studying the statistical properties of the Latent Dirichlet Allocation topic model.
 
 \section{Background on LDA}
-With an increase in the amount of digitized text, topic modeling has become an important area of research. One of the most popular methods for topic modeling is Latent Dirichlet Allocation (LDA) first described in \cite{lda}. LDA is a probabilistic hierarchical generative model, which uses the Bayesian framework to discover hidden structure, or \textit{topics},  within a text Corpus. For a more thorough background in topic modeling, refer to \cite{news}.
+\noindent With an increase in the amount of digitized text, topic modeling has become an important area of research. One of the most popular methods for topic modeling is Latent Dirichlet Allocation (LDA) first described in \cite{lda}. LDA is a probabilistic hierarchical generative model, which uses the Bayesian framework to discover hidden structure, or \textit{topics},  within a text Corpus. \textbf{For a more thorough background in topic modeling, refer to \cite{news}.}
 
 \subsection{Generative Process}
-Given a set of $K$ topics $k=1,...K$ and a set of $D$ documents $d=1,...,D$, also referred to as a corpus, the vocabulary is the set of unique words in the Corpus say $w_{1,1},...,w_{d,n_{d}},...,w_{D,n_{D}}$, where $n_{d}$ is the number of uniques words in document $d$ and $V=\sum_{d=1}^{D}{n_{d}}$. The goal of this algorithm as stated by Blei, ``to find a probabilistic model of a corpus that not only assigns high probability to members of the corpus, but also assigns high probability to other `similar' documents" (\cite{lda}, pp.996). The generative process for a corpus is as follows:
+\noindent Given a set of $K$ topics $k=1,...K$ and a set of $D$ documents $d=1,...,D$, also referred to as a corpus, the vocabulary is the set of unique words in the Corpus say $w_{1,1},...,w_{d,n_{d}},...,w_{D,n_{D}}$, where $n_{d}$ is the number of uniques words in document $d$ and $V=\sum_{d=1}^{D}{n_{d}}$. The goal of this algorithm as stated by Blei, ``to find a probabilistic model of a corpus that not only assigns high probability to members of the corpus, but also assigns high probability to other `similar' documents" (\cite{lda}, pp.996). The generative process for a corpus is as follows:
 \begin{itemize}
 	\item For each topic, \\
 	1. Draw $\beta^{k} \sim Dir(\eta)$, a distribution for each topic over the vocabulary.
 	
 	\item For each document, \\
-	2. Draw $\theta^{d} \sim Dir(\alpha)$, a distribution for each document over the topics.		\begin{itemize}
+	2. Draw $\theta^{d} \sim Dir(\alpha)$, a distribution for each document over the topics.	
+		\begin{itemize}
 		\item For each word in document $d$, \\
 		3. Draw $z_{d,n} \sim Mult(\theta^{d})$, a topic assignment (i.e. $z_{d,n} \in \mathbb{Z} \in \{1,...,K\}$ ). \\
 		4. Draw $w_{d,n} \sim Mult(\beta^{z_{d,n}})$, the $n$th word in document $d$.
 	\end{itemize}
 \end{itemize}
 
-This process requires that we know the number of topics $K$ a priori. Blei also assumed that the hyperparameters $\eta \in  (0,1)$ and $\alpha \in (0,1)$ are fixed and can be estimated through the given data. Assuming this model, we can define the joint probability distribution of a corpus as:
+\noindent This process requires that we know the number of topics $K$ a priori. Blei also assumed that the hyperparameters $\eta$ and $\alpha$ are fixed and can be estimated through the given data. Assuming this model, we can define the joint probability distribution of a corpus as:
 \begin{equation} \label{eq1}
 p(\beta,\theta,z_{d,n},w_{d,n} | \alpha,\eta) = \prod_{k=1}^{K}{p(\beta^{k} | \eta)}  \prod_{d=1}^{D}\left( p(\theta^{d} | \alpha) \prod_{n=1}^{n_{d}}{p(z_{d,n} | \theta^{d})}p(w_{d,n} | \beta^{1},...,\beta^{K},z_{d,n}) \right)  ,
 \end{equation}
 
-We will use the following dot notation:
+\noindent We will use the following dot notation:
 
 \begin{align*}
 c_{k,d,v}&=\sum_{n=1}^{n_{d}}{I(z_{d,n}=k \& w_{d,n}=v)}; &\text{ \# of times word $v$ is assigned to topic $k$ in document $d$} \\
@@ -55,7 +55,7 @@ c_{k,.,.}&=\sum_{d=1}^{D}\sum_{v=1}^{V}{c_{k,d,v}}; &\text{ \# of words in corpu
 \end{align*}
 
 
-Let $\Gamma(\cdot)$ be the Gamma function, then:
+\noindent Let $\Gamma(\cdot)$ be the Gamma function, then:
 
 \begin{align*}
 p(\beta^{k} | \eta) &=\frac{ \Gamma( \sum_{v=1}^{V}{ \eta_{v} } )}{ \prod_{v=1}^{V}{\Gamma(\eta_{v})}}  
@@ -69,63 +69,71 @@ p(w_{d,n} | \beta,z) &=\frac{1}{\prod_{v=1}^{V}{c_{k,.,v}!}}\prod_{v=1}^{V}{
 \end{align*}
 
 \subsection{Posterior Inferance}
-In practice, we do not know either $\beta$ or $\theta$. All we are given is a set of documents providing the $w_{d,n}$ parameters. Most often, we are interested in the latent variables $\beta$ and $\theta$. Rewriting \ref{eq1}
+\noindent In practice, we do not know either $\beta$ or $\theta$. All we are given is a set of documents providing the $w_{d,n}$ parameters. Most often, we are interested in the latent variables $\beta$ and $\theta$. Rewriting \ref{eq1}
 
 \begin{equation} \label{eq2}
 p(w, z, \theta, \beta | \alpha,\eta)=\left( \prod_{k=1}^{K} \frac{\Gamma(\sum{\eta_{v}})} {\prod_{v=1}^{V}(\Gamma(\eta_{v}))} \prod_{v=1}^{V} (\beta^{k}_{v})^{(\eta_{v}-1+c_{k,.,v})} \right) * 
 \left( \prod_{d=1}^{D} \frac{\Gamma(\sum{\alpha_{k}})} {\prod_{k=1}^{K}(\Gamma(\alpha_{k}))} \prod_{k=1}^{K} (\theta^{d}_{k})^{(\alpha_{k}-1+c_{k,d,.})} \right)
 \end{equation}
 
-Integrating out the latent variables, we obtain the following posterior distribution of a corpus given the hyperparameters 
+\noindent Integrating out the latent variables, we obtain the following posterior distribution of a corpus given the hyperparameters 
 
 \begin{equation} \label{eq3}
 p(w| \theta, \beta, z)=\int_{\theta} \int_{\beta} \sum_{z} \left( \prod_{k=1}^{K}{\frac{\Gamma(\sum{\eta_{v}})}{\prod_{v=1}^{V}(\Gamma(\eta_{v}))} \prod_{v=1}^{V}{(\beta^{k}_{v})^{\eta_{v}-1+c_{k,.,v}} } }    \right) * \left( \prod_{d=1}^{D}{\frac{\Gamma(\sum{\alpha_{k}})}{\prod_{k=1}^{K}(\Gamma(\alpha_{k}))}\prod_{k=1}^{K}{
 	(\theta^{d}_{k})^{\alpha_{k}-1+c_{k,d,.}} } }    \right) d\beta d\theta
 \end{equation}
 
-This distribution can be used for maximum likelihood estimation and to find the distribution of the latent variables. However, it has been proven to be intractable \cite{lda}. The development of several fast and accurate approximation methods applied to LDA has provided a user with several options including collapsed Gibbs sampling \cite{CGS}, collapsed variational Bayesian inference \cite{CVB}, maximum likelihood estimation \cite{ML}, and maximum a posteriori estimation \cite{MAP}. We will explore both Gibbs sampling and variational methods in the following two subsections. 
+\noindent This distribution can be used for maximum likelihood estimation and to find the distribution of the latent variables. However, it has been proven to be intractable \cite{lda}. The development of several fast and accurate approximation methods applied to LDA has provided a user with several options including collapsed Gibbs sampling \cite{CGS}, collapsed variational Bayesian inference \cite{CVB}, maximum likelihood estimation \cite{ML}, and maximum a posteriori estimation \cite{MAP}. We will explore both Gibbs sampling and variational methods in the following two subsections. 
 
-\subsubsection{Gibbs}
+\subsubsection{Gibbs Sampling}
 
-Explain Gibbs Sampling some...Note that the conditional distribution of $\beta$ is independent of all variables except for $\eta$. Its update equation at step $t$:  
-\\
-$$
-p(\beta^{(t)} | \beta^{(t-1)},\theta, z, w, \alpha, \eta) \propto p(\beta{(t)} | 
-\beta^{(t-1)}, \eta) \sim Dir(\eta+c_{k,.,v})
-$$
-Simerarily, we eaily find the update at step $t$ for $\theta$:
-\\
-$$
-p(\theta^{(t)} | \theta^{(t-1)},\beta, z, w, \alpha, \eta) \propto p(\theta{(t)} | 
-\theta^{(t-1)}, \alpha) \sim Dir(\alpha+c_{k,d,.})
-$$
-The update equation at step $t$ for the topic assignments $z$ do not follow such a simple form. Within each document $d$, the update equation for word $n$ is as follows:
-\\
-$$
-p( z^{t}_{d,n}| z^{(t-1)}_{-(d,n)}, \theta, \beta, w, \alpha, \eta) = \frac{p(z, w | \theta, \beta)}{p(z^{t}_{-(d,n)}, w | \theta, \beta) } \propto p(z, w | \theta, \beta)=
-p(z^{(t-1)}_{d,n} | \theta)p(w_{d,n} | \beta, z^{(t-1)}_{d,n})
-$$
+\noindent Gibbs sampling is a special form of the Metropolis Hasting MCMC algorithm. The idea, as applied to lda, is to approximate \ref{eq3} by repeatedly sampling from the conditional distributions of the latent variables given all other known and estimated variables at each step. We know that the Gibbs sampler constitutes a Markov Chain whose stationary distribution in the function in question. Pseudo Code:
+\begin{enumerate}
+	\item Initialize $\beta^{(0)}, \theta^{(0)},$ and all of the topic assignments $z^{(0)}$ for each word in the vocabulary.
+	\item For $t$ in $1,2,...$, sample:
+	\begin{enumerate}
+		\item $z^{(t)}_{i}$ from $p(z_{i}^{(t)} | z^{(t-1)}_{-i} \beta^{(t)}, \theta^{(t-1)}, w, \eta, \alpha)$
+		\item $\beta^{(t)}$ from $p(\beta^{(t)} | \theta^{(t-1)}, z^{(t-1)}, w, \eta, \alpha)=Dir(\eta+c_{k,.,v})$
+		\item $\theta^{(t)}$ from $p(\theta^{(t)} | \beta^{(t)}, z^{(t)}, w, \eta, \alpha)=Dir(\alpha+c_{k,d,.})$
+	\end{enumerate}
+	\item Continue to update and sample each of the latent variables until convergence.
+\end{enumerate}
 
-Psuedo Code...
 
-This update although simple, cheap, and accurate, converges slowly. The collapsed Gibbs sampler was created after noticing that the algorithm could be speeded up by integrating out $\theta$ from the Markov Chain's state space. The collapsed Gibbs sampler allows us to sample on a topic-by-topic basis. After some careful calculations \cite{multinom}, one can show that for word $n$ in document $d$, the probability of word $w_{d,n}$ being assigned topic $z_{d,n}=k$ is 
-\\
-$$
+\noindent Although this algorithm will eventually converge to the distributions of the latent variables, it is slow. After noticing that the distribution of topic probabilities for each word is independent of both $\theta$ and $\beta$, a collapsed gibbs sampler is used. The algorithm integrates out both $\theta$ and $\beta$ from the Markov Chain's state space. Then it uses a Gibbs sampler to iteratively sample the topic assignments. After solving for converged estimates, both $\theta$ and $\beta$ can be easily estimated. For more information on the collapsed gibbs sampler, refer to \cite{CGSTheory}. After integrating out these variables, \cite{multinom} showed that for word $n$ in document $d$, the probability of word $w_{d,n}$ being assigned topic $z_{d,n}=k$ is 
+\begin{equation} \label{eq4}
 p( z^{t}_{d,n}=k| z^{(t-1)}_{-(d,n)}, \theta, \beta, w) =c^{-1}*\frac{(c^{-(d,n)}_{z_{d,n},d,.}+\alpha_{z_{d,n}})*(c^{-(d,n)}_{z_{d,n},.,w_{d,n}}+\beta_{w_{d,n}})}{c^{-(d,n)}_{z_{d,n},.,.}+\sum_{v=1}^{V}{\beta_{v}}} 
-$$
-where $c$ is the normalizing constant equal to 
+\end{equation}
+
+\noindent where $c$ is the normalizing constant equal to 
 $$
 \sum_{k=1}^{K}{\frac{(c^{-(d,n)}_{k,d,.}+\alpha_{k})*(c^{-(d,n)}_{k,.,w_{d,n}}+\beta_{w_{d,n}})}{c^{-(d,n)}_{k,.,.}+\sum_{v=1}^{V}{\beta_{v}}}} 
 $$
 
-Psuedo Code Here...
-\subsubsection{Variational Methods}
+\noindent The update equations for $\theta$ and $\beta$ are as follows \cite{multinom}: 
+\begin{equation} \label{eq5}
+\hat{\theta}_{d,k}=\frac{\alpha_{k}+n_{d,k,.}}{D\alpha+n_{.,d,.}} \hspace{20mm} \hat{\beta}_{v,k}=\frac{\beta_{k,v}+n_{k,.,v}}{J\beta+n_{k,.,.}}
+\end{equation}
 
+Psuedo Code for the collapsed Gibbs sampler is as follows:
+\begin{enumerate}
+	\item Initialize the topic assignments for each word in the vocabulary $z^{(0)}$.
+	\item For each $w_{i}$ and $t=1,2,3,...$: 
+	\begin{enumerate}
+		\item For each topic $k=1,2,3,...$ compute \ref{eq4}.
+		\item Draw the new topic assignment from the computed discrete distribution $z^{(t)}_{i}$.
+	\end{enumerate}
+	\item Continue until convergence.
+	\item Calculate $\hat{\theta}$ and $\hat{\beta}$ from \ref{eq5}.
+\end{enumerate}
 
-\subsubsection{Other Methods Here}
-Maybe...
+\subsubsection{Variational Bayes}
+A second approach to estimating \ref{eq3} was first described in \cite{lda}. Explain it here 
+
+Give Psuedo Code...although use Blei's code already...
+
 \section{Implementation/Data Example}
-In \cite{lda}, variational methods are applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}. Refer to my 540 project and what I find there...
+\noindent In \cite{lda}, variational methods are applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}. Refer to my 540 project and what I find there...
 
 \subsection{Data}
 What and how I got it...
@@ -177,6 +185,10 @@ What and how I got it...
 	Hofmann, T.  (2001),
 	``Unsupervised Learning by probabilistic Latent Semantic Analysis."
 	\textit{Machine Learning}: 42(1), 177-196.
+	
+	\bibitem{CGSTheory}
+	Liu, Jun.  (1994),
+	``The Collapsed Gibbs Sampler in Bayesian Computations with Applications to a Gene Regulation Problem." \textit{ASA Jorunal}: Vol.89, No.427 Theory and Methods, 958-966.
 	
 	\bibitem{CVB}
 	Teh, Y. W., Newman, D., and Welling, M.  (2007),
