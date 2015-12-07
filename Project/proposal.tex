@@ -1,0 +1,82 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{titling}
+
+\setlength{\droptitle}{-10em} 
+\addtolength{\oddsidemargin}{-.875in}
+\addtolength{\evensidemargin}{-.875in}
+\addtolength{\textwidth}{1.75in}
+%\addtolength{\textheight}{1.75in}
+
+\begin{document}
+	
+\title{A Comparison of Posterior Approximation Algorithms for Latent Dirichlet Allocation} 
+         
+\author{Cindy Cook \\ STAT 540 Project, Fall 2015}
+\date{}
+\maketitle
+\vspace{-12mm}
+With an increase in the amount of digitized text, topic modeling has become an important area of research. One of the most popular methods for topic modeling is Latent Dirichlet Allocation (LDA) first described in \cite{lda}. LDA is a probabilistic hierarchical generative model, which uses the Bayesian framework to discover hidden structure, or \textit{topics},  within a text Corpus. Given a document the distribution of latent topics is found through estimation of the posterior distribution. However, this is very challenging and (computationally demanding) since the posterior distribution of the latent variables given a document is intractable. The development of several fast and accurate approximation methods applied to LDA has provided a user with several options including collapsed Gibbs sampling \cite{CGS}, collapsed variational Bayesian inference \cite{CVB}, maximum likelihood estimation \cite{ML}, and maximum a posteriori estimation \cite{MAP}. In \cite{lda}, variational methods are applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}.
+\par
+For this project I propose to conduct a simulation study, which will focus on a comparison of the collapsed Gibbs sampling algorithm and the variational Bayesian algorithm as applied to LDA. I will start by first gaining an understanding of what these algorithms are theoretically doing. Then I will explore their performances empirically. To this aim, I will simulate data following the generative process defined in \cite{lda}. I will vary the number of topics, i.e. groups: $5,10,25,50$, the hyperparameters , i.e. values: $0.001,0.01,0.1$, and the length of words in the vocabulary, i.e. $0$ to $5,000$ by $1,000$ to follow the simulation set up in \cite{BleiComp}. Mukherjee and Blei focused their study on comparing the collapsed and non-collapsed variational Bayes algorithms. I will focus on comparing an algorithm I develop to compute LDA with collapsed Gibbs sampling and compare it to the existing results from the LDA function in the \textit{topicmodels} package in R. I will use both perplexity and precision/recall measures to compare the two algorithms as shown in \cite{Comp}. I will also take into account the computational costs. With the research I have done so far, it is known that the collapsed Gibbs algorithm will take longer to gain convergence, but should be more accurate. In what situations this very general statement remains true is the ultimate goal of this research project. 
+
+
+\begin{thebibliography}{4}
+	\bibitem{STACK}
+	Anonymous. (2012),
+	``Two R Packages for Topic Modeling, lda and topicmodels?" \textit{Cross Validated}: http://stats.stackexchange.com/questions/24441/two-r-packages-for-topic-modeling-lda-and-topicmodels.
+	
+	\bibitem{Comp} 
+	Asuncion, A., Welling, M., Smyth, P., and Teh, Y.  (2009),
+	``On Smoothing and Inference for Topic Models." 
+	\textit{UAI}: 27-34.
+	
+	\bibitem{lda} 
+	Blei, D., Ng, A., and Jordan, M.  (2003),
+	``Latent Dirichlet Allocation." 
+	\textit{Journal of Machine Learning Research}: 3 993-1022.
+	
+	\bibitem{Ccode} 
+	Blei, D. (2004),``LDA-C."
+	
+	\bibitem{ldaR} 
+	Chang, J.  (2015),
+	``Package `lda'." 
+	\textit{CRAN}.
+
+	\bibitem{MAP} 
+	Chien, J., and Wu, M.  (2008),
+	``Adaptive Bayesian Semantic Analysis." 
+	\textit{Audio, Speech, and Language Processing}, IEEE Transactions on: 16(1), 198–207.
+		
+	\bibitem{CGS} 
+	Griffiths, L. and Steyvers, M.  (2004),
+	``Finding Scientific Topics." 
+	\textit{PNAS}: 1(Suppl 1), 5228-5235.
+			
+	\bibitem{topicsR} 
+	Grun, B. and Hornik, K.  (2015),
+	``Package `topicmodels'." 
+	\textit{CRAN}.	
+
+	\bibitem{ML} 
+	Hofmann, T.  (2001),
+	``Unsupervised Learning by probabilistic Latent Semantic Analysis." 
+	\textit{Machine Learning}: 42(1), 177–196.
+	
+	\bibitem{BleiComp} 
+	Mukherjee, I. and Blei, D.  (2009),
+	``Relative Performance Grantees for Approximate Inference in Latent Dirichlet Allocation." 
+	\textit{NIPS}: 21, 1129–1136.
+
+	\bibitem{CVB} 
+	Teh, Y. W., Newman, D., and Welling, M.  (2007),
+	``A Collapsed Variational Bayesian Inference Algorithm for Latent Dirichlet Allocation." 
+	\textit{NIPS}: 3, 1353-1360.
+\end{thebibliography}
+
+\end{document}

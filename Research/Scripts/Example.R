@@ -9,7 +9,7 @@ library(topicmodels)
 library(lda)
 #library(stringr)
 library(lsa)
-
+library(tm)
 #Create my Corpus of 5 sentences...
 new_data=DirSource(directory="Pets2")
 corpus=VCorpus(new_data,readerControl=list(reader=readPlain,language='en_CA',load=TRUE))
@@ -27,8 +27,8 @@ iter=5000
 
 t1=Sys.time()
 
-fit1=LDA(t(corpus),k=K,method="Gibbs",control=
-           list(seed=2,iter=iter))
+fit1=LDA(t(corpus),k=K,method="VEM",control=
+           list(seed=2))
 
 t2=Sys.time()
 t2-t1
@@ -43,7 +43,7 @@ vocab=Terms(corpus)
 t1 <- Sys.time()
 fit2=lda.collapsed.gibbs.sampler(documents = documents[[1]], K = K, vocab = vocab,
                                  num.iterations = iter, alpha = 0.4,
-                                 eta = 0.4, initial = NULL, burnin = 0,
+                                 eta = 0.4, initial = NULL, burnin = 5000,
                                  compute.log.likelihood = FALSE)
 t2 <- Sys.time()
 
@@ -65,4 +65,4 @@ fit1@gamma
 fit1@wordassignments[[1]]
 fit1@wordassignments[[5]]
 
-
+fit2

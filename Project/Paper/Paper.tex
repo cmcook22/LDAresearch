@@ -1,0 +1,263 @@
+\documentclass[12pt]{report} 
+%\documentclass[12pt,times]{elsarticle}
+\topmargin -25mm
+
+\textheight 24truecm   
+\textwidth 16truecm    
+\oddsidemargin 1mm
+\evensidemargin 1mm   
+\setlength\parskip{10pt}
+\pagestyle{empty}          
+
+\usepackage{boxedminipage}
+\usepackage{amsfonts}
+\usepackage{amsmath} 
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{amsthm}
+\usepackage{t1enc}
+\usepackage{subfig}
+\usepackage{float}
+
+
+
+
+\begin{document}
+	% Standard title, author etc.
+	\title{A Comparison of Posterior Approximation Algorithms for Latent Dirichlet Allocation.}
+	\author{Cindy Cook \\ \normalsize STAT 540 Final Project \\ \normalsize December 14, 2015}
+	\date{}
+	\maketitle
+	
+	\vspace{-10mm}
+\begin{flushleft}
+\section{Introduction}
+With an increase in the amount of digitized text, topic modeling has become an important area of research. One of the most popular methods for topic modeling is Latent Dirichlet Allocation (LDA) first described in \cite{lda}. LDA, a probabilistic hierarchical generative model, uses the Bayesian framework to discover hidden structure, or \textit{topics},  within a set of documents referred to as a corpus. Given a document, the distribution of latent topics is found through estimation of the posterior distribution. However, this is very challenging and (computationally demanding) since the posterior distribution of the latent variables given a document is intractable. Approximation of this posterior is a valid option, and there has been a heavy development of fast and accurate approximation methods applied to LDA, which provide a user with several options including collapsed Gibbs sampling (CGS) \cite{CGS}, collapsed variational Bayesian inference \cite{CVB}, maximum likelihood estimation \cite{ML}, and maximum a posteriori estimation \cite{MAP}. In \cite{lda}, a variational EM (VEM) algorithm was applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. There has been no uniform discussion under what situations should VEM or CGS be used. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}.
+\par
+This paper begins by reviewing LDA, VEM and CGS. It then conducts a simulation study, which will focuses on a comparison of the CGS and VEM algorithms as applied to LDA. The simlation study is modeled after Blei's comparison of VEM to collapsed VEM in \cite{BleiComp}. He found both algorithms to perform computationally efficiently and fast, but that the collapsed version of the VEM algorithm was less biased. Two other studies have been done comparing different methods of approximating the posterior for LDA \cite{Comp} and \cite{CVB}, but both focused on real datasets and did not consider varying model parameters. 
+
+\section{Latent Dirichlet Allocation}
+\subsection{Generative Process}
+Given a set of $K$ topics $k=1,...K$ and a set of $D$ documents $d=1,...,D$, also referred to as a corpus, the vocabulary $V$ is the set of unique words in the Corpus say $w_{1,1},...,w_{d,n_{d}},...,w_{D,n_{D}}$, where $n_{d}$ is the number of uniques words in document $d$ and $|V|=\sum_{d=1}^{D}{n_{d}}$ or the size of the vocabulary. The goal of this algorithm as stated by Blei is, ``to find a probabilistic model of a corpus that not only assigns high probability to members of the corpus, but also assigns high probability to other `similar' documents" (\cite{lda}, pp.996). The generative process for a corpus is as follows:
+\begin{itemize}
+	\item For each topic, \\
+	1. Draw $\beta^{k} \sim Dir(\eta)$, a distribution over the vocabulary.
+	
+	\item For each document, \\
+	2. Draw $\theta^{d} \sim Dir(\alpha)$, a distribution over the topics.	
+	\begin{itemize}
+		\item For each word in document $d$, \\
+		3. Draw $z_{d,n} \sim Mult(\theta^{d})$, a topic assignment. \\
+		4. Draw $w_{d,n} \sim Mult(\beta^{z_{d,n}})$, the $n$th word in document $d$.
+	\end{itemize}
+\end{itemize}
+
+Assuming this model, we can define the joint probability distribution of a corpus as:
+\begin{equation} \label{eq1}
+p(\beta,\theta,z_{d,n},w_{d,n} | \alpha,\eta) = \prod_{k=1}^{K}{p(\beta^{k} | \eta)}  \prod_{d=1}^{D}\left( p(\theta^{d} | \alpha) \prod_{n=1}^{n_{d}}{p(z_{d,n} | \theta^{d})}p(w_{d,n} | \beta^{1},...,\beta^{K},z_{d,n}) \right),
+\end{equation}
+
+This process first requires that we know the number of topics $K$ a priori, and second places no emphasis on word order allowing the joint distributions for both $z_{d,n}$ and $w_{d,n}$ be exchangeable meaning that they are invariant to permutations. All that is considered to matter are the word counts or number of times a word is assigned a particular topic and/or is drawn for a certain document. We will use the following dot notation to denote specific word counts:
+
+\begin{align*}
+c_{k,d,v}&=\sum_{n=1}^{n_{d}}{I(z_{d,n}=k \& w_{d,n}=v)}; &\text{ \# of times word $v$ is assigned to topic $k$ in document $d$} \\
+c_{k,.,v}&=\sum_{d=1}^{D}{c_{k,d,v}}; &\text{ \# of words in document $d$ assigned to topic $k$} \\
+c_{k,d,.}&=\sum_{v=1}^{V}{c_{k,d,v}}; &\text{ \# of times word $v$ is assigned to topic $k$ in any document} \\
+c_{k,.,.}&=\sum_{d=1}^{D}\sum_{v=1}^{V}{c_{k,d,v}}; &\text{ \# of words in corpus assigned to topic $k$} 
+\end{align*}
+
+In practice, we do not know $z_{d,n}, \beta^{k}$ or $\theta^{d}$. All we are given is a set of documents providing the $w_{d,n}$ parameters. Most often, a researcher is interested in the latent variables $\beta^{k}$ and $\theta^{d}$. To estimate these variables, we need to consider the following posterior distribution:
+
+\begin{equation} \label{eq2}
+\begin{align*} 
+p(\beta, \theta | w, \eta, \alpha) &= \frac{p(\beta,\theta | \eta, \alpha) * p(w | \theta, \beta)}{p(w | \alpha, \eta) } \\&=\frac{p(\beta | \eta)p(\theta | \alpha)\sum_{x}{(p(w | z, \beta)p(z | \theta)}}{ \int_{\beta}\int_{\theta}{ \left[ (p(\beta | \eta)p(\theta | \alpha) \sum_{z}{(p(w | z, \beta)p(z |\theta) ) } ) \right] d\beta d\theta} }
+\end{align*}
+\end{equation}
+
+Not only has this distribution been proven to be intractable \cite{lda}, so is the likelihood function. In both cases we have to sum over all possible values of $z$ for every word. We will explore both Gibbs sampling and variational EM methods to approximate \ref{eq2} in the following two sections. 
+
+\section{Gibbs Sampling}
+Gibbs sampling is a special form of the Metropolis Hasting MCMC algorithm. The idea, as applied to lda, is to approximate \ref{eq2} by repeatedly sampling from the conditional distributions of the latent variables given all other known and estimated variables at each step. It is known that the Gibbs sampler constitutes a Markov Chain whose stationary distribution is the function in question. The Markov Chain described below asymptotically converges to \ref{eq2}:
+\begin{enumerate}
+	\item Initialize $\beta^{k^{(0)}}, \theta^{d^{(0)}},$ and all of the topic assignments $z_{d,n}^{(0)}$ for each word in the vocabulary.
+	\item For $t$ in $1,2,...$, sample:
+	\begin{enumerate}
+		\item $\beta^{k^{(t)}}$ from $p(\beta^{k^{(t)}} | \theta^{d^{(t-1)}}, z_{d,n}^{(t-1)}, w_{d,n}, \eta, \alpha)=Dir(\eta+c_{k,.,v})$
+		\item For every document $d$ 
+		\begin{enumerate}
+			\item $\theta^{d^{(t)}}$ from $p(\theta^{d^{(t)}} | \beta^{k^{(t)}}, z_{d,n}^{(t-1)}, w_{d,n}, \eta, \alpha)=Dir(\alpha+c_{k,d,.})$
+			\item $z^{(t)}_{d,i}$ from $p(z_{d,i}^{(t)} | z^{(t-1)}_{d,-i} \beta^{k^{(t)}}, \theta^{d^{(t)}}, w_{d,n}, \eta, \alpha)$ for all $i=1,...n_{d}$ 
+		\end{enumerate}
+	\end{enumerate}
+	\item Continue to update and sample each of the latent variables until convergence.
+\end{enumerate}
+
+Although this algorithm will eventually converge to the distributions of the latent variables, it is slow. Due to the conjugacy of the priors, each step is fast and easy to compute, but there are a large number of latent variables that need to be sampled. One way of speeding this algorithm up is to `collapse' the parameter space by integrating out specific parameters. This method is referred to collapsed Gibbs sampling and has been implemented for LDA in \cite{CGS}. 
+
+Here, the algorithm integrates out both $\theta$ and $\beta$ from the Markov Chain's state space. Then it uses a Gibbs sampler to iteratively sample the topic assignments. After solving for converged estimates, both $\theta$ and $\beta$ can be easily estimated. For more information on the collapsed gibbs sampler, refer to \cite{CGSTheory}. After integrating out these variables, \cite{multinom} showed that for word $n$ in document $d$, the probability of word $w_{d,n}$ being assigned topic $z_{d,n}=k$ is 
+\begin{equation} \label{eq4}
+p( z^{t}_{d,n}=k| z^{(t-1)}_{-(d,n)}, \theta, \beta, w) =c^{-1}*\frac{(c^{-(d,n)}_{z_{d,n},d,.}+\alpha_{z_{d,n}})*(c^{-(d,n)}_{z_{d,n},.,w_{d,n}}+\beta_{w_{d,n}})}{c^{-(d,n)}_{z_{d,n},.,.}+\sum_{v=1}^{V}{\beta_{v}}} 
+\end{equation}
+
+\noindent where $c$ is the normalizing constant equal to 
+$$
+\sum_{k=1}^{K}{\frac{(c^{-(d,n)}_{k,d,.}+\alpha_{k})*(c^{-(d,n)}_{k,.,w_{d,n}}+\beta_{w_{d,n}})}{c^{-(d,n)}_{k,.,.}+\sum_{v=1}^{V}{\beta_{v}}}} 
+$$
+
+\noindent The update equations for $\theta$ and $\beta$ are as follows \cite{multinom}: 
+\begin{equation} \label{eq5}
+\hat{\theta}_{d,k}=\frac{\alpha_{k}+n_{d,k,.}}{D\alpha+n_{.,d,.}} \hspace{20mm} \hat{\beta}_{v,k}=\frac{\beta_{k,v}+n_{k,.,v}}{J\beta+n_{k,.,.}}
+\end{equation}
+
+Psuedo Code for the collapsed Gibbs sampler is as follows:
+\begin{enumerate}
+	\item Initialize the topic assignments for each word in the vocabulary $z^{(0)}$.
+	\item For each $w_{i}$ and $t=1,2,3,...$: 
+	\begin{enumerate}
+		\item For each topic $k=1,2,3,...$ compute \ref{eq4}.
+		\item Draw the new topic assignment from the computed discrete distribution $z^{(t)}_{i}$.
+	\end{enumerate}
+	\item Continue until convergence.
+	\item Calculate $\hat{\theta}$ and $\hat{\beta}$ from \ref{eq5}.
+\end{enumerate}
+
+\section{Variational EM}
+\noindent In order to infer the parameters, a second approach using variational methods was first described in \cite{lda}. This approach uses Jensen's inequality to obtain a lower bound on the log likelihood of the data given $\alpha, \eta$: $l(\alpha, \eta)=\sum_{d=1}^{D}{(\log{(w_{d} | \alpha, \eta)})}$. In general, a family of tractable surrogate distributions defined by their unique parameters is found. These parameters are referred to as variational parameters. The lower bound is found by minimizing the Kulllback-Leibler (KL) divergence between the variational distribution and the true posterior. A simple variational distribution to consider, the one that Blei considers, just removes the dependence between $\theta$ and $\beta$, which causes the intractability of the true posterior. Here we will use the following surrogate function:
+$$
+\tilde{q}(z, \beta, \theta)=\prod_{k}{\tilde{q}(\beta_{k} | \tilde{\eta}_{k})}\prod_{d}{\tilde{q}(\theta_{d} | \tilde{\alpha}_{d})} \prod_{d,n}{\tilde{q}(z_{d,n} | \tilde{\gamma}_{d,n})}.
+$$
+
+Minimizing the KL distance leads to the following update equations:
+
+\begin{equation} \label{eq6}
+\tilde{\gamma}^{(t+1)}_{n,d,k}=\exp{\left(\Psi{(\tilde{\alpha}^{t}_{d,k})}+\Psi{(\tilde{\eta}^{t}_{k,x_{d,n}})}-\Psi{\left(\sum_{n}{(\tilde{\eta}^{t}_{k,n})}\right)}\right)} \hspace{20mm} \tilde{\alpha}^{t}_{d,k}=\alpha+\sum_{n}{(\tilde{\gamma}^{(t+1)}_{d,k,n})} \hspace{20mm} \tilde{\eta}^{(t+1)}_{k,n}=\eta+\sum_{d,n}{(I(x_{d,n}=w)\tilde{\gamma}^{t}_{d,k,n})} 
+\end{equation}
+
+where $\Psi(x)=\frac{d\log{(\Gamma{x} ) } }{dx}$ and $I$ is the indicator function. Blei goes a step further and proposes the following EM algorithm to estimate the $\beta$ and $\alpha$ parameters:
+
+\begin{enumerate}
+	\item (E-step) Find the variational parameters by using a fixed point iterative algorithm to minimize the KL distance.
+	\item (M-step) Maximize the resulting lower bound on the log likelihood with respect to $\beta$ and $\alpha$.
+\end{enumerate}  
+
+For the M-step, $\beta$ can be found analytically using 
+\begin{equation} \label{eq7}
+\beta^{(t+1)} \propto \sum_{d=1}^{D}\sum_{n=1}^{N_{d}}{(\tilde{\eta}_{d,k,n}w_{d,k,n})},
+\end{equation} 
+but $\alpha^{(t+1)}$ must be found using a Newton Raphson algorithm. Here, the estimate for $\beta$ is proportional because we need to normalize so that the $\beta$'s sum to one.
+
+Below outlines Pseudo Code for the variational Bayes approximation algorithm:
+\begin{enumerate}
+	\item Initialize: \begin{align*}
+	\text{For each topic } k, \hspace{10mm} &\tilde{\eta}^{0}_{n}=\eta_{n}+frac{N}{k} \\
+	\text{For each document } d, \hspace{10mm}&\tilde{\alpha}^{0}_{k}=\alpha_{k}+frac{N}{k} \\
+	\text{For each word in document } d, \hspace{10mm}&\tilde{\gamma}^{0}_{k}=frac{1}{k} \\
+	\end{align*} 
+	\item (E-step) For each document $d$ in $1,...,D$, \\ Repeat for $t=0,1,2,...$:
+	\begin{enumerate}
+		\item For $n$ in $1,...,N_{d}$
+		\item \hspace{5mm} For $k$ in $1,...,K$ 
+		\item \hspace{10mm} Update $\tilde{\gamma}^{(t+1)}_{n,d,k}$ using \ref{eq6}.
+		\item \hspace{5mm} Normalize $\tilde{\gamma}^{(t+1)}_{n,d}$ to sum to one.
+		\item Update $\tilde{\alpha}^{(t+1)}$ and $\tilde{\eta}^{(t+1)}$ using \ref{eq6}
+		\item Continue until convergence.
+	\end{enumerate}
+	\item Solve the log likelihood given the data and variational estimates $\tilde{\alpha}$ and $\tilde{\eta}$.
+	\item (M-step) For each document $d$ in $1,...,D$
+	\item \hspace{5mm} For each $k$ in $1,..K$
+	\item \hspace{10mm} For each $n$ in $1,...,N_{d}$
+	\item \hspace{15mm} Solve for $\beta_{n,k}$ using \ref{eq7}
+	\item \hspace{15mm} Normalize the $\beta$ so they sum to one.
+	\item \hspace{5mm} Solve for $\alpha$.
+	\item If likelihood converged using new parameters then end.
+	\item Else go back to the E-step.
+\end{enumerate}
+
+
+
+\begin{enumerate}
+	\item 
+\end{enumerate}
+
+
+\section{Simulation Study}
+I will start by first gaining an understanding of what these algorithms are theoretically doing. Then I will explore their performances empirically. To this aim, I will simulate data following the generative process defined in \cite{lda}. I will vary the number of topics, i.e. groups: $5,10,25,50$, the hyperparameters , i.e. values: $0.001,0.01,0.1$, and the length of words in the vocabulary, i.e. $0$ to $5,000$ by $1,000$ to follow the simulation set up in \cite{BleiComp}. Mukherjee and Blei focused their study on comparing the collapsed and non-collapsed variational Bayes algorithms. I will focus on comparing an algorithm I develop to compute LDA with collapsed Gibbs sampling and compare it to the existing results from the LDA function in the \textit{topicmodels} package in R. I will use both perplexity and precision/recall measures to compare the two algorithms as shown in \cite{Comp}. I will also take into account the computational costs. With the research I have done so far, it is known that the collapsed Gibbs algorithm will take longer to gain convergence, but should be more accurate. In what situations this very general statement remains true is the ultimate goal of this research project. 
+\subsection{Results}
+
+\section{Conclusions}
+\subsection{Discussion}
+
+\subsection{Future Directions}
+
+\end{flushleft}
+
+\bibliographystyle{elsarticle-num}
+\bibliography{library}
+
+\begin{thebibliography}{4}
+	\bibitem{STACK}
+	Anonymous. (2012),
+	``Two R Packages for Topic Modeling, lda and topicmodels?" \textit{Cross Validated}: http://stats.stackexchange.com/questions/24441/two-r-packages-for-topic-modeling-lda-and-topicmodels.
+	
+	\bibitem{Comp} 
+	Asuncion, A., Welling, M., Smyth, P., and Teh, Y.  (2009),
+	``On Smoothing and Inference for Topic Models." 
+	\textit{UAI}: 27-34.
+	
+	\bibitem{lda}
+	Blei, D., Ng, A., and Jordan, M.  (2003),
+	``Latent Dirichlet Allocation."
+	\textit{Journal of Machine Learning Research}: 3 993-1022.
+	
+	\bibitem{Ccode}
+	Blei, D. (2004),``LDA-C."
+	
+	\bibitem{multinom}
+	Carpenter, Bob. (2010),
+	``Integrating out Multinomial Parameters in Latent Dirichlet Allocation and Naive Bayes for Collapsed Gibbs Sampling."
+	\textit{LingPipe}: carp@lingpipe.com.
+	
+	\bibitem{ldaR}
+	Chang, J.  (2015),
+	``Package `lda'."
+	\textit{CRAN}.
+	
+	\bibitem{MAP}
+	Chien, J., and Wu, M.  (2008),
+	``Adaptive Bayesian Semantic Analysis."
+	\textit{Audio, Speech, and Language Processing}, IEEE Transactions on: 16(1), 198-207.
+	
+	\bibitem{CGS}
+	Griffiths, L. and Steyvers, M.  (2004),
+	``Finding Scientific Topics."
+	\textit{PNAS}: 1(Suppl 1), 5228-5235.
+	
+	\bibitem{topicsR}
+	Grun, B. and Hornik, K.  (2015),
+	``Package `topicmodels'."
+	\textit{CRAN}.
+	
+	\bibitem{ML}
+	Hofmann, T.  (2001),
+	``Unsupervised Learning by probabilistic Latent Semantic Analysis."
+	\textit{Machine Learning}: 42(1), 177-196.
+	
+	\bibitem{CGSTheory}
+	Liu, Jun.  (1994),
+	``The Collapsed Gibbs Sampler in Bayesian Computations with Applications to a Gene Regulation Problem." \textit{ASA Jorunal}: Vol.89, No.427 Theory and Methods, 958-966.
+	
+	\bibitem{BleiComp} 
+	Mukherjee, I. and Blei, D.  (2009),
+	``Relative Performance Grantees for Approximate Inference in Latent Dirichlet Allocation." 
+	\textit{NIPS}: 21, 1129–1136.
+	
+	\bibitem{CVB}
+	Teh, Y. W., Newman, D., and Welling, M.  (2007),
+	``A Collapsed Variational Bayesian Inference Algorithm for Latent Dirichlet 
+	Allocation."\textit{NIPS}: 3, 1353-1360.
+	
+	
+	
+\end{thebibliography}
+
+\end{document}

@@ -76,7 +76,7 @@ p(w, z, \theta, \beta | \alpha,\eta)=\left( \prod_{k=1}^{K} \frac{\Gamma(\sum{\e
 \left( \prod_{d=1}^{D} \frac{\Gamma(\sum{\alpha_{k}})} {\prod_{k=1}^{K}(\Gamma(\alpha_{k}))} \prod_{k=1}^{K} (\theta^{d}_{k})^{(\alpha_{k}-1+c_{k,d,.})} \right)
 \end{equation}
 
-\noindent Integrating out the latent variables, we obtain the following posterior distribution of a corpus given the hyperparameters 
+\noindent Integrating out the latent variables, we obtain the following posterior distribution of a corpus:
 
 \begin{equation} \label{eq3}
 p(w| \theta, \beta, z)=\int_{\theta} \int_{\beta} \sum_{z} \left( \prod_{k=1}^{K}{\frac{\Gamma(\sum{\eta_{v}})}{\prod_{v=1}^{V}(\Gamma(\eta_{v}))} \prod_{v=1}^{V}{(\beta^{k}_{v})^{\eta_{v}-1+c_{k,.,v}} } }    \right) * \left( \prod_{d=1}^{D}{\frac{\Gamma(\sum{\alpha_{k}})}{\prod_{k=1}^{K}(\Gamma(\alpha_{k}))}\prod_{k=1}^{K}{
@@ -87,7 +87,7 @@ p(w| \theta, \beta, z)=\int_{\theta} \int_{\beta} \sum_{z} \left( \prod_{k=1}^{K
 
 \subsubsection{Gibbs Sampling}
 
-\noindent Gibbs sampling is a special form of the Metropolis Hasting MCMC algorithm. The idea, as applied to lda, is to approximate \ref{eq3} by repeatedly sampling from the conditional distributions of the latent variables given all other known and estimated variables at each step. We know that the Gibbs sampler constitutes a Markov Chain whose stationary distribution in the function in question. Pseudo Code:
+\noindent Gibbs sampling is a special form of the Metropolis Hasting MCMC algorithm. The idea, as applied to lda, is to approximate \ref{eq3} by repeatedly sampling from the conditional distributions of the latent variables given all other known and estimated variables at each step. It is known that the Gibbs sampler constitutes a Markov Chain whose stationary distribution is the function in question. The Markov Chain described below asymptotically converges to \ref{eq3}. Pseudo Code:
 \begin{enumerate}
 	\item Initialize $\beta^{(0)}, \theta^{(0)},$ and all of the topic assignments $z^{(0)}$ for each word in the vocabulary.
 	\item For $t$ in $1,2,...$, sample:
@@ -100,7 +100,7 @@ p(w| \theta, \beta, z)=\int_{\theta} \int_{\beta} \sum_{z} \left( \prod_{k=1}^{K
 \end{enumerate}
 
 
-\noindent Although this algorithm will eventually converge to the distributions of the latent variables, it is slow. After noticing that the distribution of topic probabilities for each word is independent of both $\theta$ and $\beta$, a collapsed gibbs sampler is used. The algorithm integrates out both $\theta$ and $\beta$ from the Markov Chain's state space. Then it uses a Gibbs sampler to iteratively sample the topic assignments. After solving for converged estimates, both $\theta$ and $\beta$ can be easily estimated. For more information on the collapsed gibbs sampler, refer to \cite{CGSTheory}. After integrating out these variables, \cite{multinom} showed that for word $n$ in document $d$, the probability of word $w_{d,n}$ being assigned topic $z_{d,n}=k$ is 
+\noindent Although this algorithm will eventually converge to the distributions of the latent variables, it is slow. After noticing that the distribution of topic probabilities for each word is independent of both $\theta$ and $\beta$, a collapsed gibbs sampler can be implemented. Here, the algorithm integrates out both $\theta$ and $\beta$ from the Markov Chain's state space. Then it uses a Gibbs sampler to iteratively sample the topic assignments. After solving for converged estimates, both $\theta$ and $\beta$ can be easily estimated. For more information on the collapsed gibbs sampler, refer to \cite{CGSTheory}. After integrating out these variables, \cite{multinom} showed that for word $n$ in document $d$, the probability of word $w_{d,n}$ being assigned topic $z_{d,n}=k$ is 
 \begin{equation} \label{eq4}
 p( z^{t}_{d,n}=k| z^{(t-1)}_{-(d,n)}, \theta, \beta, w) =c^{-1}*\frac{(c^{-(d,n)}_{z_{d,n},d,.}+\alpha_{z_{d,n}})*(c^{-(d,n)}_{z_{d,n},.,w_{d,n}}+\beta_{w_{d,n}})}{c^{-(d,n)}_{z_{d,n},.,.}+\sum_{v=1}^{V}{\beta_{v}}} 
 \end{equation}
@@ -128,9 +128,62 @@ Psuedo Code for the collapsed Gibbs sampler is as follows:
 \end{enumerate}
 
 \subsubsection{Variational Bayes}
-A second approach to estimating \ref{eq3} was first described in \cite{lda}. Explain it here 
+\noindent In order to infer the parameters, a second approach using variational methods was first described in \cite{lda}. This approach uses Jensen's inequality to obtain a lower bound on the log likelihood of the data given $\alpha, \eta$: $l(\alpha, \eta)=\sum_{d=1}^{D}{(\log{(w_{d} | \alpha, \eta)})}$. In general, a family of tractable surrogate distributions defined by their unique parameters is found. These parameters are referred to as variational parameters. The lower bound is found by minimizing the Kulllback-Leibler (KL) divergence between the variational distribution and the true posterior. A simple variational distribution to consider, the one that Blei considers, just removes the dependence between $\theta$ and $\beta$, which causes the intractability of the true posterior. Here we will use the following surrogate function:
+$$
+\tilde{q}(z, \beta, \theta)=\prod_{k}{\tilde{q}(\beta_{k} | \tilde{\eta}_{k})}\prod_{d}{\tilde{q}(\theta_{d} | \tilde{\alpha}_{d})} \prod_{d,n}{\tilde{q}(z_{d,n} | \tilde{\gamma}_{d,n})}.
+$$
 
-Give Psuedo Code...although use Blei's code already...
+Minimizing the KL distance leads to the following update equations:
+
+\begin{equation} \label{eq6}
+\tilde{\gamma}^{(t+1)}_{n,d,k}=\exp{\left(\Psi{(\tilde{\alpha}^{t}_{d,k})}+\Psi{(\tilde{\eta}^{t}_{k,x_{d,n}})}-\Psi{\left(\sum_{n}{(\tilde{\eta}^{t}_{k,n})}\right)}\right)} \hspace{20mm} \tilde{\alpha}^{t}_{d,k}=\alpha+\sum_{n}{(\tilde{\gamma}^{(t+1)}_{d,k,n})} \hspace{20mm} \tilde{\eta}^{(t+1)}_{k,n}=\eta+\sum_{d,n}{(I(x_{d,n}=w)\tilde{\gamma}^{t}_{d,k,n})} 
+\end{equation}
+
+where $\Psi(x)=\frac{d\log{(\Gamma{x} ) } }{dx}$ and $I$ is the indicator function. Blei goes a step further and proposes the following EM algorithm to estimate the $\beta$ and $\alpha$ parameters:
+
+\begin{enumerate}
+	\item (E-step) Find the variational parameters by using a fixed point iterative algorithm to minimize the KL distance.
+	\item (M-step) Maximize the resulting lower bound on the log likelihood with respect to $\beta$ and $\alpha$.
+\end{enumerate}  
+
+For the M-step, $\beta$ can be found analytically using 
+\begin{equation} \label{eq7}
+\beta^{(t+1)} \propto \sum_{d=1}^{D}\sum_{n=1}^{N_{d}}{(\tilde{\eta}_{d,k,n}w_{d,k,n})},
+\end{equation} 
+but $\alpha^{(t+1)}$ must be found using a Newton Raphson algorithm. Here, the estimate for $\beta$ is proportional because we need to normalize so that the $\beta$'s sum to one.
+
+Below outlines Pseudo Code for the variational Bayes approximation algorithm:
+\begin{enumerate}
+	\item Initialize: \begin{align*}
+						\text{For each topic } k, \hspace{10mm} &\tilde{\eta}^{0}_{n}=\eta_{n}+frac{N}{k} \\
+						\text{For each document } d, \hspace{10mm}&\tilde{\alpha}^{0}_{k}=\alpha_{k}+frac{N}{k} \\
+						\text{For each word in document } d, \hspace{10mm}&\tilde{\gamma}^{0}_{k}=frac{1}{k} \\
+					\end{align*} 
+	\item (E-step) For each document $d$ in $1,...,D$, \\ Repeat for $t=0,1,2,...$:
+		\begin{enumerate}
+			\item For $n$ in $1,...,N_{d}$
+			\item \hspace{5mm} For $k$ in $1,...,K$ 
+			\item \hspace{10mm} Update $\tilde{\gamma}^{(t+1)}_{n,d,k}$ using \ref{eq6}.
+			\item \hspace{5mm} Normalize $\tilde{\gamma}^{(t+1)}_{n,d}$ to sum to one.
+			\item Update $\tilde{\alpha}^{(t+1)}$ and $\tilde{\eta}^{(t+1)}$ using \ref{eq6}
+			\item Continue until convergence.
+		\end{enumerate}
+	\item Solve the log likelihood given the data and variational estimates $\tilde{\alpha}$ and $\tilde{\eta}$.
+	\item (M-step) For each document $d$ in $1,...,D$
+	\item \hspace{5mm} For each $k$ in $1,..K$
+	\item \hspace{10mm} For each $n$ in $1,...,N_{d}$
+	\item \hspace{15mm} Solve for $\beta_{n,k}$ using \ref{eq7}
+	\item \hspace{15mm} Normalize the $\beta$ so they sum to one.
+	\item \hspace{5mm} Solve for $\alpha$.
+	\item If likelihood converged using new parameters then end.
+	\item Else go back to the E-step.
+\end{enumerate}
+
+
+
+\begin{enumerate}
+	\item 
+\end{enumerate}
 
 \section{Implementation/Data Example}
 \noindent In \cite{lda}, variational methods are applied to solve the problem. These methods were coded in C by Blei (refer to \cite{Ccode}) and have since been utilized in the \textit{topicmodels} package in R \cite{topicsR}. Another package, \textit{lda}, in R has been developed by Chang, which uses his own C code with collapsed Gibbs sampling for posterior approximation \cite{ldaR}. On the website Cross Validated, there is a discussion of which package is better for users, with no definitive answer \cite{STACK}. Refer to my 540 project and what I find there...
@@ -199,6 +252,7 @@ What and how I got it...
 	Carpenter, Bob. (2010),
 	``Integrating out Multinomial Parameters in Latent Dirichlet Allocation and Naive       Bayes for Collapsed Gibbs Sampling."
 	\textit{LingPipe}: carp@lingpipe.com.
+	
 	
 \end{thebibliography}
 
